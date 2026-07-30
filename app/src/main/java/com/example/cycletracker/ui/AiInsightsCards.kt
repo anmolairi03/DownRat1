@@ -13,20 +13,22 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import com.example.cycletracker.data.SettingsManager
+import com.example.cycletracker.data.SettingsRepository
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun AiInsightsCards(
-    settingsManager: SettingsManager,
+    repository: SettingsRepository = SettingsRepository.getInstance(LocalContext.current),
     onGetInsights: (String) -> Unit,
     onOpenSettings: () -> Unit
 ) {
+    val appState by repository.appState.collectAsState()
     val commonSymptoms = listOf("Cramps", "Headache", "Bloating", "Fatigue", "Acne", "Tender Breasts", "Nausea")
     val commonMoods = listOf("Happy", "Sad", "Irritable", "Anxious", "Calm", "Mood Swings")
 
@@ -174,17 +176,17 @@ fun AiInsightsCards(
             
             Button(
                 onClick = {
-                    if (settingsManager.geminiApiKey.isBlank()) {
+                    if (appState.geminiApiKey.isBlank()) {
                         showKeyRequired = true
                     } else {
                         val prompt = """
                             Please provide personalized healthcare advice based on my personal attributes and current logged symptoms.
                             
                             User Profile:
-                            - Weight: ${settingsManager.weight.ifBlank { "Not provided" }}
-                            - Height: ${settingsManager.height.ifBlank { "Not provided" }}
-                            - Age: ${settingsManager.age.ifBlank { "Not provided" }}
-                            - Average Cycle Length: ${settingsManager.averageCycleLength} days
+                            - Weight: ${appState.weight.ifBlank { "Not provided" }}
+                            - Height: ${appState.height.ifBlank { "Not provided" }}
+                            - Age: ${appState.age.ifBlank { "Not provided" }}
+                            - Average Cycle Length: ${appState.averageCycleLength} days
                             
                             Current Context & Symptoms:
                             - Flow Level: $flowLevel

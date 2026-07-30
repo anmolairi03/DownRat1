@@ -19,7 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.cycletracker.data.PeriodRecord
-import com.example.cycletracker.data.SettingsManager
+import com.example.cycletracker.data.SettingsRepository
 import androidx.glance.appwidget.updateAll
 import kotlinx.coroutines.launch
 
@@ -30,9 +30,10 @@ fun DailyReminderBanner(
 ) {
     var isDismissed by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val repository = remember { SettingsRepository.getInstance(context) }
+    val appState by repository.appState.collectAsState()
+    val currentWaterCount = appState.waterCount
     val scope = rememberCoroutineScope()
-    val settingsManager = remember { SettingsManager(context) }
-    var currentWaterCount by remember { mutableStateOf(settingsManager.getWaterCountForToday()) }
 
     if (isDismissed) return
 
@@ -78,7 +79,7 @@ fun DailyReminderBanner(
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
                             Text(
-                                text = "DAILY HYDRATION & HEALTH REMINDER (${settingsManager.dailyReminderTime})",
+                                text = "DAILY HYDRATION & HEALTH REMINDER (${appState.dailyReminderTime})",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Black,
                                 color = Color.White.copy(alpha = 0.85f),
@@ -130,21 +131,8 @@ fun DailyReminderBanner(
                     Button(
                         onClick = {
                             val newCount = currentWaterCount + 1
-                            settingsManager.setWaterCountForToday(newCount)
-                            currentWaterCount = newCount
+                            scope.launch { repository.setWaterCount(newCount) }
                             Toast.makeText(context, "+1 Water Glass Added! Total: $newCount/8", Toast.LENGTH_SHORT).show()
-                            scope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                                try {
-                                    val glanceIdManager = androidx.glance.appwidget.GlanceAppWidgetManager(context)
-                                    val glanceIds = glanceIdManager.getGlanceIds(com.example.cycletracker.widget.CycleWidget::class.java)
-                                    val widget = com.example.cycletracker.widget.CycleWidget()
-                                    glanceIds.forEach { id ->
-                                        widget.update(context, id)
-                                    }
-                                } catch (e: Exception) {
-                                    e.printStackTrace()
-                                }
-                            }
                         },
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(

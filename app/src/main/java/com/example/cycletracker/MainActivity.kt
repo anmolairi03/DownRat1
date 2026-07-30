@@ -314,7 +314,6 @@ class MainActivity : ComponentActivity() {
                                         .verticalScroll(rememberScrollState())
                                 ) {
                                     AiInsightsCards(
-                                        settingsManager = viewModel.settingsManager,
                                         onGetInsights = { question ->
                                             viewModel.startChat(question)
                                             showChatModal = true
@@ -326,7 +325,6 @@ class MainActivity : ComponentActivity() {
 
                             "profile" -> {
                                 SettingsScreen(
-                                    settingsManager = viewModel.settingsManager,
                                     latestRecord = latestRecord,
                                     records = records,
                                     onResetAllData = { viewModel.resetAllData() },

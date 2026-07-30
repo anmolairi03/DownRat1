@@ -40,7 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.cycletracker.data.PeriodRecord
-import com.example.cycletracker.data.SettingsManager
+import com.example.cycletracker.data.SettingsRepository
 import com.example.cycletracker.widget.CycleWidgetReceiver
 import com.example.cycletracker.worker.NotificationScheduler
 
@@ -63,26 +63,29 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    settingsManager: SettingsManager,
+    repository: SettingsRepository = SettingsRepository.getInstance(LocalContext.current),
     latestRecord: PeriodRecord? = null,
     records: List<PeriodRecord> = emptyList(),
     onResetAllData: () -> Unit,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
-    var weight by remember { mutableStateOf(settingsManager.weight) }
-    var height by remember { mutableStateOf(settingsManager.height) }
-    var age by remember { mutableStateOf(settingsManager.age) }
-    var cycleLength by remember { mutableStateOf(settingsManager.averageCycleLength.toString()) }
-    var leadTime by remember { mutableStateOf(settingsManager.notificationLeadTimeDays.toString()) }
-    var apiKey by remember { mutableStateOf(settingsManager.geminiApiKey) }
+    val appState by repository.appState.collectAsState()
+    val scope = rememberCoroutineScope()
 
-    var notificationsEnabled by remember { mutableStateOf(settingsManager.notificationsEnabled) }
-    var dailyReminderEnabled by remember { mutableStateOf(settingsManager.dailyReminderEnabled) }
-    var dailyReminderTime by remember { mutableStateOf(settingsManager.dailyReminderTime) }
-    var waterReminderEnabled by remember { mutableStateOf(settingsManager.waterReminderEnabled) }
-    var waterIntervalHours by remember { mutableStateOf(settingsManager.waterIntervalHours.toString()) }
-    var widgetEnabled by remember { mutableStateOf(settingsManager.widgetEnabled) }
+    var weight by remember { mutableStateOf(appState.weight) }
+    var height by remember { mutableStateOf(appState.height) }
+    var age by remember { mutableStateOf(appState.age) }
+    var cycleLength by remember { mutableStateOf(appState.averageCycleLength.toString()) }
+    var leadTime by remember { mutableStateOf(appState.notificationLeadTimeDays.toString()) }
+    var apiKey by remember { mutableStateOf(appState.geminiApiKey) }
+
+    var notificationsEnabled by remember { mutableStateOf(appState.notificationsEnabled) }
+    var dailyReminderEnabled by remember { mutableStateOf(appState.dailyReminderEnabled) }
+    var dailyReminderTime by remember { mutableStateOf(appState.dailyReminderTime) }
+    var waterReminderEnabled by remember { mutableStateOf(appState.waterReminderSwitch) }
+    var waterIntervalHours by remember { mutableStateOf(appState.waterIntervalHours.toString()) }
+    var widgetEnabled by remember { mutableStateOf(appState.widgetEnabled) }
 
     var showApiKey by remember { mutableStateOf(false) }
     var showConfirmDialog by remember { mutableStateOf(false) }
@@ -129,21 +132,24 @@ fun SettingsScreen(
     }
 
     fun saveAllSettings() {
-        settingsManager.weight = weight
-        settingsManager.height = height
-        settingsManager.age = age
         val parsedCycleLen = cycleLength.toIntOrNull() ?: 28
         val parsedLeadTime = leadTime.toIntOrNull() ?: 2
-        settingsManager.averageCycleLength = parsedCycleLen
-        settingsManager.notificationLeadTimeDays = parsedLeadTime
-        settingsManager.geminiApiKey = apiKey.trim()
-        settingsManager.notificationsEnabled = notificationsEnabled
         val parsedWaterInterval = waterIntervalHours.toIntOrNull() ?: 2
-        settingsManager.waterIntervalHours = parsedWaterInterval
-        settingsManager.waterReminderEnabled = waterReminderEnabled
-        settingsManager.dailyReminderEnabled = dailyReminderEnabled
-        settingsManager.dailyReminderTime = dailyReminderTime
-        settingsManager.widgetEnabled = widgetEnabled
+
+        scope.launch {
+            repository.setWeight(weight)
+            repository.setHeight(height)
+            repository.setAge(age)
+            repository.setAverageCycleLength(parsedCycleLen)
+            repository.setNotificationLeadTimeDays(parsedLeadTime)
+            repository.setGeminiApiKey(apiKey.trim())
+            repository.setNotificationsEnabled(notificationsEnabled)
+            repository.setWaterIntervalHours(parsedWaterInterval)
+            repository.setWaterReminderSwitch(waterReminderEnabled)
+            repository.setDailyReminderEnabled(dailyReminderEnabled)
+            repository.setDailyReminderTime(dailyReminderTime)
+            repository.setWidgetEnabled(widgetEnabled)
+        }
 
         updateWidgetComponentState(widgetEnabled)
 
@@ -389,10 +395,10 @@ fun SettingsScreen(
                                     checked = notificationsEnabled,
                                     onCheckedChange = { enabled ->
                                         notificationsEnabled = enabled
-                                        settingsManager.notificationsEnabled = enabled
+                                        scope.launch { repository.setNotificationsEnabled(enabled) }
                                         if (enabled) {
                                             val lead = leadTime.toIntOrNull() ?: 2
-                                            NotificationScheduler.scheduleNextPeriodReminder(context, latestRecord, settingsManager.averageCycleLength, lead)
+                                            NotificationScheduler.scheduleNextPeriodReminder(context, latestRecord, appState.averageCycleLength, lead)
                                         } else {
                                             NotificationScheduler.cancelPeriodReminder(context)
                                         }
@@ -415,9 +421,9 @@ fun SettingsScreen(
                                             onValueChange = {
                                                 leadTime = it
                                                 val parsed = it.toIntOrNull() ?: 2
-                                                settingsManager.notificationLeadTimeDays = parsed
+                                                scope.launch { repository.setNotificationLeadTimeDays(parsed) }
                                                 if (notificationsEnabled) {
-                                                    NotificationScheduler.scheduleNextPeriodReminder(context, latestRecord, settingsManager.averageCycleLength, parsed)
+                                                    NotificationScheduler.scheduleNextPeriodReminder(context, latestRecord, appState.averageCycleLength, parsed)
                                                 }
                                             },
                                             modifier = Modifier.width(80.dp),
@@ -456,7 +462,7 @@ fun SettingsScreen(
                                     checked = dailyReminderEnabled,
                                     onCheckedChange = { enabled ->
                                         dailyReminderEnabled = enabled
-                                        settingsManager.dailyReminderEnabled = enabled
+                                        scope.launch { repository.setDailyReminderEnabled(enabled) }
                                         if (enabled) {
                                             NotificationScheduler.scheduleDailyStatusReminder(context, dailyReminderTime)
                                         } else {
@@ -479,7 +485,7 @@ fun SettingsScreen(
                                         value = dailyReminderTime,
                                         onValueChange = {
                                             dailyReminderTime = it
-                                            settingsManager.dailyReminderTime = it
+                                            scope.launch { repository.setDailyReminderTime(it) }
                                             if (dailyReminderEnabled) {
                                                 NotificationScheduler.scheduleDailyStatusReminder(context, it)
                                             }
@@ -516,7 +522,7 @@ fun SettingsScreen(
                                     checked = waterReminderEnabled,
                                     onCheckedChange = { enabled ->
                                         waterReminderEnabled = enabled
-                                        settingsManager.waterReminderEnabled = enabled
+                                        scope.launch { repository.setWaterReminderSwitch(enabled) }
                                         val repo = com.example.cycletracker.data.SettingsRepository.getInstance(context)
                                         kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
                                             repo.setWaterReminderSwitch(enabled)
@@ -546,7 +552,7 @@ fun SettingsScreen(
                                             onValueChange = {
                                                 waterIntervalHours = it
                                                 val parsed = it.toIntOrNull() ?: 2
-                                                settingsManager.waterIntervalHours = parsed
+                                                scope.launch { repository.setWaterIntervalHours(parsed) }
                                                 if (waterReminderEnabled) {
                                                     NotificationScheduler.scheduleWaterIntervalReminder(context, parsed)
                                                 }
@@ -587,7 +593,7 @@ fun SettingsScreen(
                                     checked = widgetEnabled,
                                     onCheckedChange = { enabled ->
                                         widgetEnabled = enabled
-                                        settingsManager.widgetEnabled = enabled
+                                        scope.launch { repository.setWidgetEnabled(enabled) }
                                         updateWidgetComponentState(enabled)
                                         if (enabled) {
                                             triggerWidgetPin()
@@ -815,20 +821,13 @@ fun SettingsScreen(
                         }
                     }
 
-                    var previewWaterCount by remember { mutableIntStateOf(settingsManager.getWaterCountForToday()) }
+                    var previewWaterCount by remember { mutableIntStateOf(appState.waterCount) }
                     val scope = rememberCoroutineScope()
 
                     fun updatePreviewWater(newCount: Int) {
                         val count = newCount.coerceAtLeast(0)
                         previewWaterCount = count
-                        settingsManager.setWaterCountForToday(count)
-                        scope.launch {
-                            try {
-                                com.example.cycletracker.widget.CycleWidget().updateAll(context)
-                            } catch (e: Exception) {
-                                e.printStackTrace()
-                            }
-                        }
+                        scope.launch { repository.setWaterCount(count) }
                     }
 
                     val today = remember { LocalDate.now() }
@@ -847,7 +846,7 @@ fun SettingsScreen(
                         }
                         try {
                             val start = LocalDate.parse(latestRecord.startDate.split("T")[0])
-                            val avgLen = settingsManager.averageCycleLength.toLong().coerceAtLeast(20L)
+                            val avgLen = appState.averageCycleLength.toLong().coerceAtLeast(20L)
 
                             if (isOngoing) {
                                 periodDay = ChronoUnit.DAYS.between(start, today).toInt() + 1

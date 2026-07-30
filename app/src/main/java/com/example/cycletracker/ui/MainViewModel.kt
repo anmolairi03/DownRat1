@@ -6,7 +6,6 @@ import androidx.lifecycle.viewModelScope
 import com.example.cycletracker.BuildConfig
 import com.example.cycletracker.CycleTrackerApplication
 import com.example.cycletracker.data.PeriodRecord
-import com.example.cycletracker.data.SettingsManager
 import com.google.ai.client.generativeai.GenerativeModel
 import com.example.cycletracker.data.AppState
 import com.example.cycletracker.data.SettingsRepository
@@ -26,7 +25,6 @@ data class ChatMessage(val role: String, val text: String)
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val app = application as CycleTrackerApplication
     private val periodDao = app.database.periodDao()
-    val settingsManager = SettingsManager(application)
     val repository = SettingsRepository.getInstance(application)
 
     val appState: StateFlow<AppState> = repository.appState
@@ -79,14 +77,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun toggleWaterReminderSwitch(enabled: Boolean) {
         viewModelScope.launch {
             repository.setWaterReminderSwitch(enabled)
-            settingsManager.waterReminderEnabled = enabled
         }
     }
 
     fun setWaterCount(count: Int) {
         viewModelScope.launch {
             repository.setWaterCount(count)
-            settingsManager.setWaterCountForToday(count)
         }
     }
 
@@ -96,26 +92,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _isLoadingAi = MutableStateFlow(false)
     val isLoadingAi: StateFlow<Boolean> = _isLoadingAi.asStateFlow()
 
-    fun updateWidget() {
-        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-            try {
-                val glanceIdManager = androidx.glance.appwidget.GlanceAppWidgetManager(app)
-                val glanceIds = glanceIdManager.getGlanceIds(com.example.cycletracker.widget.CycleWidget::class.java)
-                val widget = com.example.cycletracker.widget.CycleWidget()
-                glanceIds.forEach { id ->
-                    widget.update(app, id)
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
-    }
-
     fun insertRecord(record: PeriodRecord) {
         viewModelScope.launch {
             periodDao.insertRecord(record)
             updateNotifications()
-            updateWidget()
+            repository.notifyWidgetUpdate()
         }
     }
 
@@ -123,16 +104,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             periodDao.deleteRecord(record)
             updateNotifications()
-            updateWidget()
+            repository.notifyWidgetUpdate()
         }
     }
 
     fun resetAllData() {
         viewModelScope.launch {
             periodDao.deleteAllRecords()
-            settingsManager.clearAll()
+            repository.clearAll()
             updateNotifications()
-            updateWidget()
+            repository.notifyWidgetUpdate()
         }
     }
 
@@ -143,14 +124,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 app,
                 records.firstOrNull(),
                 calculateCalculatedAvgCycleLength(),
-                settingsManager.notificationLeadTimeDays
+                repository.appState.value.notificationLeadTimeDays
             )
         }
     }
 
     fun calculateCalculatedAvgCycleLength(): Int {
         val records = allRecords.value.sortedBy { it.startDate }
-        if (records.size < 2) return settingsManager.averageCycleLength
+        if (records.size < 2) return repository.appState.value.averageCycleLength
 
         var totalDays = 0L
         var count = 0
@@ -163,9 +144,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 count++
             }
         }
-        if (count == 0) return settingsManager.averageCycleLength
+        if (count == 0) return repository.appState.value.averageCycleLength
         val avg = (totalDays / count).toInt()
-        return if (avg in 20..45) avg else settingsManager.averageCycleLength
+        return if (avg in 20..45) avg else repository.appState.value.averageCycleLength
     }
 
     fun startChat(contextPrompt: String) {
@@ -199,7 +180,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _isLoadingAi.value = true
             
             try {
-                val apiKey = settingsManager.geminiApiKey.ifBlank { BuildConfig.GEMINI_API_KEY }
+                val apiKey = repository.appState.value.geminiApiKey.ifBlank { BuildConfig.GEMINI_API_KEY }
                 if (apiKey.isNotBlank()) {
                     val modelNames = listOf("gemini-2.5-flash", "gemini-1.5-flash", "gemini-flash-latest")
                     var lastError: Exception? = null
@@ -209,10 +190,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         You are an empathetic, expert women's period health & wellness assistant named Your Personal Healthcare AI Assistant.
                         
                         User Personal Health Attributes:
-                        - Weight: ${settingsManager.weight.ifBlank { "Not provided" }}
-                        - Height: ${settingsManager.height.ifBlank { "Not provided" }}
-                        - Age: ${settingsManager.age.ifBlank { "Not provided" }}
-                        - Average Cycle Length: ${settingsManager.averageCycleLength} days
+                        - Weight: ${repository.appState.value.weight.ifBlank { "Not provided" }}
+                        - Height: ${repository.appState.value.height.ifBlank { "Not provided" }}
+                        - Age: ${repository.appState.value.age.ifBlank { "Not provided" }}
+                        - Average Cycle Length: ${repository.appState.value.averageCycleLength} days
                         - Recorded History Entries: ${allRecords.value.size} cycle entries
                         
                         Chat History:

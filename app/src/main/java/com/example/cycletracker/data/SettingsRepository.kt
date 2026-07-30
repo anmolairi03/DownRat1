@@ -29,7 +29,16 @@ data class AppState(
     val waterCount: Int = 0,
     val selectedPhase: String = "all",
     val notificationsEnabled: Boolean = true,
-    val dailyReminderEnabled: Boolean = true
+    val dailyReminderEnabled: Boolean = true,
+    val weight: String = "",
+    val height: String = "",
+    val age: String = "",
+    val notificationLeadTimeDays: Int = 2,
+    val averageCycleLength: Int = 28,
+    val geminiApiKey: String = "",
+    val dailyReminderTime: String = "20:00",
+    val widgetEnabled: Boolean = true,
+    val waterIntervalHours: Int = 2
 )
 
 class SettingsRepository private constructor(private val context: Context) {
@@ -43,6 +52,15 @@ class SettingsRepository private constructor(private val context: Context) {
         val KEY_SELECTED_PHASE = stringPreferencesKey("selected_phase")
         val KEY_NOTIFICATIONS_ENABLED = booleanPreferencesKey("notifications_enabled")
         val KEY_DAILY_REMINDER_ENABLED = booleanPreferencesKey("daily_reminder_enabled")
+        val KEY_WEIGHT = stringPreferencesKey("weight")
+        val KEY_HEIGHT = stringPreferencesKey("height")
+        val KEY_AGE = stringPreferencesKey("age")
+        val KEY_NOTIFICATION_LEAD_TIME_DAYS = intPreferencesKey("lead_time")
+        val KEY_AVERAGE_CYCLE_LENGTH = intPreferencesKey("avg_cycle_length")
+        val KEY_GEMINI_API_KEY = stringPreferencesKey("gemini_api_key")
+        val KEY_DAILY_REMINDER_TIME = stringPreferencesKey("daily_reminder_time")
+        val KEY_WIDGET_ENABLED = booleanPreferencesKey("widget_enabled")
+        val KEY_WATER_INTERVAL_HOURS = intPreferencesKey("water_interval_hours")
 
         @Volatile
         private var INSTANCE: SettingsRepository? = null
@@ -63,7 +81,16 @@ class SettingsRepository private constructor(private val context: Context) {
             waterCount = prefs[KEY_WATER_COUNT] ?: 0,
             selectedPhase = prefs[KEY_SELECTED_PHASE] ?: "all",
             notificationsEnabled = prefs[KEY_NOTIFICATIONS_ENABLED] ?: true,
-            dailyReminderEnabled = prefs[KEY_DAILY_REMINDER_ENABLED] ?: true
+            dailyReminderEnabled = prefs[KEY_DAILY_REMINDER_ENABLED] ?: true,
+            weight = prefs[KEY_WEIGHT] ?: "",
+            height = prefs[KEY_HEIGHT] ?: "",
+            age = prefs[KEY_AGE] ?: "",
+            notificationLeadTimeDays = prefs[KEY_NOTIFICATION_LEAD_TIME_DAYS] ?: 2,
+            averageCycleLength = prefs[KEY_AVERAGE_CYCLE_LENGTH] ?: 28,
+            geminiApiKey = prefs[KEY_GEMINI_API_KEY] ?: "",
+            dailyReminderTime = prefs[KEY_DAILY_REMINDER_TIME] ?: "20:00",
+            widgetEnabled = prefs[KEY_WIDGET_ENABLED] ?: true,
+            waterIntervalHours = prefs[KEY_WATER_INTERVAL_HOURS] ?: 2
         )
     }
 
@@ -108,6 +135,62 @@ class SettingsRepository private constructor(private val context: Context) {
             prefs[KEY_NOTIFICATIONS_ENABLED] = enabled
         }
         notifyWidgetUpdate()
+    }
+
+    suspend fun setDailyReminderEnabled(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_DAILY_REMINDER_ENABLED] = enabled
+        }
+        notifyWidgetUpdate()
+    }
+
+    suspend fun setWeight(weight: String) {
+        context.dataStore.edit { prefs -> prefs[KEY_WEIGHT] = weight }
+        notifyWidgetUpdate()
+    }
+
+    suspend fun setHeight(height: String) {
+        context.dataStore.edit { prefs -> prefs[KEY_HEIGHT] = height }
+        notifyWidgetUpdate()
+    }
+
+    suspend fun setAge(age: String) {
+        context.dataStore.edit { prefs -> prefs[KEY_AGE] = age }
+        notifyWidgetUpdate()
+    }
+
+    suspend fun setNotificationLeadTimeDays(days: Int) {
+        context.dataStore.edit { prefs -> prefs[KEY_NOTIFICATION_LEAD_TIME_DAYS] = days }
+        notifyWidgetUpdate()
+    }
+
+    suspend fun setAverageCycleLength(length: Int) {
+        context.dataStore.edit { prefs -> prefs[KEY_AVERAGE_CYCLE_LENGTH] = length }
+        notifyWidgetUpdate()
+    }
+
+    suspend fun setGeminiApiKey(key: String) {
+        context.dataStore.edit { prefs -> prefs[KEY_GEMINI_API_KEY] = key }
+        notifyWidgetUpdate()
+    }
+
+    suspend fun setDailyReminderTime(time: String) {
+        context.dataStore.edit { prefs -> prefs[KEY_DAILY_REMINDER_TIME] = time }
+        notifyWidgetUpdate()
+    }
+
+    suspend fun setWidgetEnabled(enabled: Boolean) {
+        context.dataStore.edit { prefs -> prefs[KEY_WIDGET_ENABLED] = enabled }
+        notifyWidgetUpdate()
+    }
+
+    suspend fun setWaterIntervalHours(hours: Int) {
+        context.dataStore.edit { prefs -> prefs[KEY_WATER_INTERVAL_HOURS] = hours }
+        notifyWidgetUpdate()
+    }
+
+    suspend fun clearAll() {
+        context.dataStore.edit { it.clear() }
     }
 
     fun notifyWidgetUpdate() {

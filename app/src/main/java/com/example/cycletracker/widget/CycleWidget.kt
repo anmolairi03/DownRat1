@@ -37,7 +37,6 @@ import androidx.glance.appwidget.SwitchColors
 import androidx.glance.appwidget.SwitchDefaults
 import com.example.cycletracker.data.AppDatabase
 import com.example.cycletracker.data.PeriodRecord
-import com.example.cycletracker.data.SettingsManager
 import com.example.cycletracker.data.SettingsRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -70,8 +69,6 @@ class UpdateWaterActionCallback : ActionCallback {
                     current
                 }
                 repository.setWaterCount(newCount)
-                val settingsManager = SettingsManager(appContext)
-                settingsManager.setWaterCountForToday(newCount)
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -152,9 +149,6 @@ class ToggleWaterSwitchActionCallback : ActionCallback {
                 val currentAppState = repository.getAppState()
                 val newState = !currentAppState.waterReminderSwitch
                 repository.setWaterReminderSwitch(newState)
-
-                val sm = SettingsManager(appContext)
-                sm.waterReminderEnabled = newState
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -225,8 +219,6 @@ class SetWidgetPhaseActionCallback : ActionCallback {
             try {
                 val phase = parameters[phaseKey] ?: "all"
                 repository.setSelectedPhase(phase)
-                val settingsManager = SettingsManager(appContext)
-                settingsManager.widgetSelectedPhase = phase
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -264,13 +256,12 @@ class CycleWidget : GlanceAppWidget() {
             } catch (e: Exception) {
                 null
             }
-            val sm = SettingsManager(appContext)
             val appState = repository.getAppState()
             WidgetStateData(
                 records = recs,
                 waterCount = appState.waterCount,
                 selectedPhase = appState.selectedPhase,
-                averageCycleLength = sm.averageCycleLength,
+                averageCycleLength = appState.averageCycleLength,
                 periodActiveSwitch = appState.periodActiveSwitch,
                 waterReminderSwitch = appState.waterReminderSwitch
             )
