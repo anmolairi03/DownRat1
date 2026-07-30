@@ -1,0 +1,8 @@
+{
+  "name": "Cycle Tracker",
+  "description": "Android cycle tracking application built with Kotlin, Jetpack Compose, Room Database, and Gemini AI",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

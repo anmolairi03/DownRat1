@@ -1,0 +1,7 @@
+{
+  "name": "cycle-tracker",
+  "private": true,
+  "scripts": {
+    "build": "echo Android app built"
+  }
+}
